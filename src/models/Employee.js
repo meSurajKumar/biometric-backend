@@ -7,10 +7,10 @@ const employeeSchema = new Schema({
   email: { type: String,  },
   employeeScoreCard: {
     biometricHpeData: {
-      shoulderError: { type: Number },
-      backError: { type: Number },
-      kneeError: { type: Number },
-      totalError: { type: Number },
+      shoulderError: { type: String },
+      backError: { type: String },
+      kneeError: { type: String },
+      totalError: { type: String },
       greenPercentage: { type: String },
       redPercentage: { type: String },
       token: { type: String },

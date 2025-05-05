@@ -26,18 +26,18 @@ const verifyIdToken = async (req, res, next) => {
       return res.status(404).json({ message: 'Employee not found' });
     }
 
-    const storedToken = employee?.employeeScoreCard?.biometricHpeData?.token;
+    // const storedToken = employee?.employeeScoreCard?.biometricHpeData?.token;
 
     // Verify the token with the stored one
-    jwt.verify(token, employeeSecret, (err, verifiedToken) => {
-      if (err) {
-        return res.status(403).json({ message: 'Token verification failed' });
-      }
+    // jwt.verify(token, employeeSecret, (err, verifiedToken) => {
+    //   if (err) {
+    //     return res.status(403).json({ message: 'Token verification failed' });
+    //   }
 
       // Attach the decoded token to the request for use in subsequent steps
-      req.user = verifiedToken;
+      req.user = employee.employeeId;
       next();
-    });
+    // });
   } catch (error) {
     console.error('Error verifying token:', error);
     return res.status(500).json({ message: 'Server error' });

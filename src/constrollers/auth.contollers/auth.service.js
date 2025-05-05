@@ -51,7 +51,7 @@ class AuthServices {
                 });
             };
             const id_token = jwt.sign({ sub: userInfo.sub }, employeeSecret, { expiresIn: tokenExpireTime });
-            return { status: 200, access_token: access_token, id_token: id_token, refresh_token: refresh_token, expires_in: expires_in };
+            return { status: 200, access_token: access_token, id_token: id_token, refresh_token: refresh_token, expires_in: expires_in,id: userInfo.sub };
         } catch (error) {
             console.error(error.response?.data || error.message);
             return { status: 400, error: 'Invalid username or password' };
@@ -73,29 +73,108 @@ class AuthServices {
         };
     };
 
-    submitExtraData = async (body) => {
-        // Example of saving additional data
-        const { email, department } = body;
-        const employee = await Employee.findOne({ email });
+    submitExtraData = async (req) => {
+        const { body, user } = req;
+        const userId = user.sub;
+      
+        const {
+          email,
+          shoulderErr,
+          kneeErr,
+          backErr,
+          totalErr,
+          greenPercentage,
+          redPercentage,
+        } = body;
+      
+        const employee = await Employee.findOne({ employeeId: userId });
+      
         if (employee) {
-            employee.department = department;
-            await employee.save();
-            return { message: 'Extra data saved', status: 200 };
+          employee.email = email;
+      
+          // Ensure nested objects exist
+          if (!employee.employeeScoreCard) {
+            employee.employeeScoreCard = {};
+          }
+          if (!employee.employeeScoreCard.biometricHpeData) {
+            employee.employeeScoreCard.biometricHpeData = {};
+          }
+      
+          // Update nested fields
+          employee.employeeScoreCard.biometricHpeData.shoulderError = shoulderErr;
+          employee.employeeScoreCard.biometricHpeData.kneeError = kneeErr;
+          employee.employeeScoreCard.biometricHpeData.backError = backErr;
+          employee.employeeScoreCard.biometricHpeData.totalError = totalErr;
+          employee.employeeScoreCard.biometricHpeData.greenPercentage = greenPercentage;
+          employee.employeeScoreCard.biometricHpeData.redPercentage = redPercentage;
+      
+          await employee.save();
+      
+          return { message: 'Data saved', status: 200 };
         }
+      
         return { message: 'Employee not found', status: 404 };
-    };
+      };
+      
+      
 
-    getUserById = async (params) => {
-        // Example of saving additional data
-        const { id } = params // This is the employeeId (sub from Keycloak)
+      getUserById = async (params) => {
+        const { id } = params; // employeeId (Keycloak sub)
         try {
-            const user = await Employee.findOne({ employeeId: id }).select('id email firstName lastName')
-            if (!user) return { message: 'User not found',status: 404 }; 
-            return { message: 'user data', data: user, status: 200 };
+          const user = await Employee.findOne({ employeeId: id }).select(
+            'email firstName lastName employeeScoreCard.biometricHpeData'
+          );
+      
+          if (!user) return { message: 'User not found', status: 404 };
+      
+          const biometricData = user.employeeScoreCard?.biometricHpeData;
+      
+          return {
+            message: 'User data',
+            user: {
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              scoreData: biometricData || null, // Ensure it's `null` if undefined
+            },
+            status: 200,
+          };
         } catch (err) {
-            return { message: err, status: 400 };
+          return { message: err.message || err, status: 400 };
         }
-    }
+      };
+
+      updateScore = async (req) => {
+        try {
+          const { body, user } = req;
+          const userId = user;
+          console.log('user id >',userId)
+      
+          if (!userId) {
+            return { message: 'Invalid token payload', status: 400 };
+          }
+      
+          // Perform the update
+          const updateResult = await Employee.updateOne(
+            { employeeId: userId },
+            { $set: { 'employeeScoreCard.biometricHpeData': body } }
+          );
+      
+          if (updateResult.matchedCount === 0) {
+            return { message: 'User not found', status: 404 };
+          }
+      
+          // Retrieve the updated document
+          const updatedUser = await Employee.findOne({ employeeId: userId }).select('id email firstName lastName scoreData');
+      
+          return { message: 'Score updated', user: updatedUser, status: 200 };
+        } catch (error) {
+          console.error('Error updating score:', error);
+          return { message: 'Server error while updating score', status: 500 };
+        }
+      };
+      
+      
 
 }
 
